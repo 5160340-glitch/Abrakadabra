@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Абракадабра-Рифмовалка</title>
 
+<!-- PWA -->
+<meta name="theme-color" content="#6a5acd">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Абракадабра">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%236a5acd'/><text x='90' y='125' font-size='100' text-anchor='middle'>🔮</text></svg>">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔮</text></svg>">
 
 <style>
@@ -171,7 +177,6 @@
     min-height: 16px;
   }
 
-  /* ===== Блок «Фон открытки» ===== */
   .bg-block { margin-bottom: 12px; }
   .bg-row {
     display: flex; gap: 8px; align-items: center;
@@ -303,7 +308,6 @@
     background: #f2f2f7; color: var(--ios-blue);
   }
 
-  /* ===== Превью открытки ===== */
   .postcard-backdrop {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.75);
@@ -330,6 +334,41 @@
   }
   .postcard-actions .btn { flex: 1; font-size: 14px; padding: 13px 6px; }
   .postcard-actions .btn-sm { flex: 0 0 auto; background: #ffffff; }
+
+  /* ===== Баннер установки ===== */
+  .install-banner {
+    position: fixed;
+    bottom: max(20px, env(safe-area-inset-bottom) + 12px);
+    left: 50%; transform: translateX(-50%) translateY(120px);
+    width: calc(100% - 32px);
+    max-width: 480px;
+    background: var(--ios-card);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+    z-index: 150;
+    transition: transform 0.3s ease;
+  }
+  .install-banner.show { transform: translateX(-50%) translateY(0); }
+  .install-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #6a5acd, #ff9500);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .install-text { flex: 1; font-size: 13px; line-height: 1.3; }
+  .install-text strong { display: block; font-size: 14px; color: var(--ios-text); }
+  .install-text span { color: var(--ios-secondary); }
+  .install-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .install-btn {
+    padding: 8px 12px; font-size: 13px; font-weight: 600;
+    border: none; border-radius: 9px; cursor: pointer;
+    background: var(--ios-blue); color: #fff;
+    white-space: nowrap;
+  }
+  .install-btn.ghost { background: #f2f2f7; color: var(--ios-blue); }
 </style>
 </head>
 <body>
@@ -390,8 +429,7 @@
   </div>
 
   <p class="hint">
-    Слайдер «Безумие»: слева — только реальные рифмы, справа — перестановка букв.
-    «Свой» фон сохранится в браузере и будет использован в открытке.
+    «Открытка» — стих картинкой с вашим фоном. Установите приложение на телефон для быстрого доступа.
   </p>
 </div>
 
@@ -419,7 +457,94 @@
   </div>
 </div>
 
+<!-- Баннер установки -->
+<div class="install-banner" id="installBanner">
+  <div class="install-icon">🔮</div>
+  <div class="install-text">
+    <strong>Установить Абракадабру</strong>
+    <span id="installHint">Добавьте на экран Домой</span>
+  </div>
+  <div class="install-actions">
+    <button class="install-btn ghost" id="installLater">Позже</button>
+    <button class="install-btn" id="installNow">Установить</button>
+  </div>
+</div>
+
 <script>
+/* ============================================================
+   PWA: манифест + service worker (всё через Blob, один файл)
+   ============================================================ */
+(function initPWA() {
+  // Манифест
+  const manifest = {
+    name: 'Абракадабра-Рифмовалка',
+    short_name: 'Абракадабра',
+    description: 'Превращает 2–3 слова в созвучное стихотворение',
+    start_url: '.',
+    display: 'standalone',
+    background_color: '#f2f2f7',
+    theme_color: '#6a5acd',
+    orientation: 'portrait',
+    icons: [
+      {
+        src: 'data:image/svg+xml,' + encodeURIComponent(
+          `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+            <rect width="512" height="512" rx="112" fill="#6a5acd"/>
+            <text x="256" y="360" font-size="280" text-anchor="middle">🔮</text>
+          </svg>`
+        ),
+        sizes: '512x512',
+        type: 'image/svg+xml',
+        purpose: 'any'
+      },
+      {
+        src: 'data:image/svg+xml,' + encodeURIComponent(
+          `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+            <rect width="512" height="512" rx="112" fill="#6a5acd"/>
+            <text x="256" y="360" font-size="280" text-anchor="middle">🔮</text>
+          </svg>`
+        ),
+        sizes: '512x512',
+        type: 'image/svg+xml',
+        purpose: 'maskable'
+      }
+    ]
+  };
+  const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+  const manifestUrl = URL.createObjectURL(manifestBlob);
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = manifestUrl;
+  document.head.appendChild(link);
+
+  // Service worker (кэширует оболочку)
+  if ('serviceWorker' in navigator) {
+    const swCode = `
+      const CACHE = 'abrakadabra-v1';
+      self.addEventListener('install', (e) => {
+        self.skipWaiting();
+        e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./'])));
+      });
+      self.addEventListener('activate', (e) => {
+        e.waitUntil(self.clients.claim());
+      });
+      self.addEventListener('fetch', (e) => {
+        if (e.request.method !== 'GET') return;
+        e.respondWith(
+          caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
+            const copy = resp.clone();
+            caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+            return resp;
+          }).catch(() => caches.match('./')))
+        );
+      });
+    `;
+    const swBlob = new Blob([swCode], { type: 'application/javascript' });
+    const swUrl = URL.createObjectURL(swBlob);
+    navigator.serviceWorker.register(swUrl).catch(() => {});
+  }
+})();
+
 /* ============================================================
    СЛОВАРЬ СОЗВУЧИЙ
    ============================================================ */
@@ -699,7 +824,6 @@ function handleBgUpload(file) {
   }
   const reader = new FileReader();
   reader.onload = (e) => {
-    // Сжимаем до 1200px по длинной стороне, чтобы влезло в localStorage
     const img = new Image();
     img.onload = () => {
       const maxSide = 1200;
@@ -857,10 +981,21 @@ function fallbackCopy(text) {
 }
 
 /* ============================================================
-   ОТКРЫТКА (canvas → PNG)
+   ОТКРЫТКА (canvas → PNG) — с автоподбором шрифта
    ============================================================ */
 const POSTCARD_W = 1080;
-const POSTCARD_H = 1350; // 4:5 — идеально для соцсетей
+const POSTCARD_H = 1350;
+
+// Безопасные поля
+const PAD = {
+  left: 140,
+  right: 140,
+  top: 220,
+  bottom: 180
+};
+
+const MAX_TEXT_W = POSTCARD_W - PAD.left - PAD.right;
+const MAX_TEXT_H = POSTCARD_H - PAD.top - PAD.bottom;
 
 function wrapText(ctx, text, maxWidth) {
   const words = text.split(' ');
@@ -886,6 +1021,26 @@ function drawCoverImage(ctx, img) {
   ctx.drawImage(img, (POSTCARD_W - w) / 2, (POSTCARD_H - h) / 2, w, h);
 }
 
+/* Подбираем шрифт: бинарный поиск от 96 до 20 px,
+   пока блок не влезет в MAX_TEXT_H */
+function fitFontSize(ctx, wrapped, startSize, minSize) {
+  let lo = minSize, hi = startSize;
+  let best = minSize;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    ctx.font = `600 ${mid}px -apple-system, "SF Pro Display", "Segoe UI", Roboto, sans-serif`;
+    const lineHeight = mid * 1.35;
+    const total = wrapped.length * lineHeight;
+    if (total <= MAX_TEXT_H) {
+      best = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return best;
+}
+
 async function buildPostcard() {
   const canvas = document.createElement('canvas');
   canvas.width = POSTCARD_W;
@@ -895,7 +1050,6 @@ async function buildPostcard() {
   const customBg = getCustomBg();
 
   if (customBg) {
-    // Свой фон: загружаем картинку и рисуем cover
     const img = await new Promise((resolve, reject) => {
       const i = new Image();
       i.onload = () => resolve(i);
@@ -903,11 +1057,9 @@ async function buildPostcard() {
       i.src = customBg;
     });
     drawCoverImage(ctx, img);
-    // Затемнение для читаемости
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.fillRect(0, 0, POSTCARD_W, POSTCARD_H);
   } else {
-    // Случайный градиент
     const [c1, c2] = pick(GRADIENTS);
     const grad = ctx.createLinearGradient(0, 0, POSTCARD_W, POSTCARD_H);
     grad.addColorStop(0, c1);
@@ -916,7 +1068,6 @@ async function buildPostcard() {
     ctx.fillRect(0, 0, POSTCARD_W, POSTCARD_H);
   }
 
-  // Декоративные звёзды
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   for (let i = 0; i < 40; i++) {
     const x = Math.random() * POSTCARD_W;
@@ -927,41 +1078,57 @@ async function buildPostcard() {
     ctx.fill();
   }
 
-  // Текст стиха
-  const lines = lastResult.split('\n');
+  const rawLines = lastResult.split('\n');
+
+  // Первичная нарезка по словам при базовом шрифте
+  ctx.font = '600 60px -apple-system, "SF Pro Display", "Segoe UI", Roboto, sans-serif';
+  let wrapped = [];
+  for (const ln of rawLines) {
+    wrapped.push(...wrapText(ctx, ln, MAX_TEXT_W));
+  }
+
+  // Подбираем размер так, чтобы всё влезло
+  const fontSize = fitFontSize(ctx, wrapped, 96, 20);
+
+  // Ещё раз переносим с финальным шрифтом (могло понадобиться больше строк)
+  ctx.font = `600 ${fontSize}px -apple-system, "SF Pro Display", "Segoe UI", Roboto, sans-serif`;
+  wrapped = [];
+  for (const ln of rawLines) {
+    wrapped.push(...wrapText(ctx, ln, MAX_TEXT_W));
+  }
+
+  // Пересчитываем и при необходимости ещё уменьшаем
+  let finalSize = fontSize;
+  const lineHeight = finalSize * 1.35;
+  while (wrapped.length * lineHeight > MAX_TEXT_H && finalSize > 20) {
+    finalSize -= 2;
+    ctx.font = `600 ${finalSize}px -apple-system, "SF Pro Display", "Segoe UI", Roboto, sans-serif`;
+    wrapped = [];
+    for (const ln of rawLines) {
+      wrapped.push(...wrapText(ctx, ln, MAX_TEXT_W));
+    }
+  }
+
+  const finalLineHeight = finalSize * 1.35;
+  const totalHeight = wrapped.length * finalLineHeight;
+
+  // Центрируем по вертикали в безопасной зоне
+  let y = PAD.top + (MAX_TEXT_H - totalHeight) / 2 + finalLineHeight / 2;
+
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowColor = 'rgba(0,0,0,0.55)';
   ctx.shadowBlur = 12;
   ctx.shadowOffsetY = 2;
-
-  // Подбираем шрифт под количество строк
-  let fontSize;
-  if (lines.length <= 2) fontSize = 72;
-  else if (lines.length <= 4) fontSize = 62;
-  else fontSize = 52;
-
-  const maxWidth = POSTCARD_W - 160;
-  const lineHeight = fontSize * 1.35;
-
-  // Перенос длинных строк
-  const wrapped = [];
-  for (const ln of lines) {
-    wrapped.push(...wrapText(ctx, ln, maxWidth));
-  }
-
-  const totalHeight = wrapped.length * lineHeight;
-  let y = (POSTCARD_H - totalHeight) / 2 + lineHeight / 2;
-
-  ctx.font = `600 ${fontSize}px -apple-system, "SF Pro Display", "Segoe UI", Roboto, sans-serif`;
+  ctx.font = `600 ${finalSize}px -apple-system, "SF Pro Display", "Segoe UI", Roboto, sans-serif`;
 
   for (const ln of wrapped) {
     ctx.fillText(ln, POSTCARD_W / 2, y);
-    y += lineHeight;
+    y += finalLineHeight;
   }
 
-  // Подпись
+  // Подпись — фиксированная, вне текстовой зоны
   ctx.shadowBlur = 6;
   ctx.font = '500 28px -apple-system, "SF Pro Display", "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
@@ -970,7 +1137,6 @@ async function buildPostcard() {
   return canvas.toDataURL('image/png');
 }
 
-/* Превью открытки */
 let currentPostcardDataUrl = '';
 
 async function openPostcard() {
@@ -997,7 +1163,6 @@ async function downloadPostcard() {
     const blob = await res.blob();
     const file = new File([blob], filename, { type: 'image/png' });
 
-    // Нативный шит «Поделиться файлом» на iOS/Android
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({
         files: [file],
@@ -1007,7 +1172,6 @@ async function downloadPostcard() {
       return;
     }
 
-    // Fallback: скачивание
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1033,6 +1197,61 @@ function showToast(msg) {
   toast.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+}
+
+/* ============================================================
+   УСТАНОВКА НА ТЕЛЕФОН (PWA)
+   ============================================================ */
+let deferredInstallPrompt = null;
+
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches ||
+         window.navigator.standalone === true;
+}
+
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+function showInstallBanner() {
+  if (isStandalone()) return;
+  if (localStorage.getItem('abrakadabra_install_dismissed') === '1') return;
+
+  const banner = document.getElementById('installBanner');
+  const hint = document.getElementById('installHint');
+  const btn = document.getElementById('installNow');
+
+  if (deferredInstallPrompt) {
+    hint.textContent = 'Нажмите «Установить» — иконка появится на экране Домой';
+    btn.textContent = 'Установить';
+    btn.onclick = async () => {
+      deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      banner.classList.remove('show');
+      if (choice.outcome === 'accepted') showToast('Установлено!');
+    };
+  } else if (isIOS()) {
+    hint.textContent = 'Нажмите «Поделиться» → «На экран Домой»';
+    btn.textContent = 'Как?';
+    btn.onclick = () => {
+      showToast('Поделиться (квадрат со стрелкой) → «На экран Домой»');
+    };
+  } else {
+    // Десктоп или браузер без установки
+    hint.textContent = 'Откройте на телефоне в Chrome или Safari';
+    btn.textContent = 'Ок';
+    btn.onclick = () => banner.classList.remove('show');
+  }
+
+  banner.classList.add('show');
+}
+
+function hideInstallBanner(remember) {
+  document.getElementById('installBanner').classList.remove('show');
+  if (remember) {
+    try { localStorage.setItem('abrakadabra_install_dismissed', '1'); } catch (e) {}
+  }
 }
 
 /* ============================================================
@@ -1072,7 +1291,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', () => doShare(btn.dataset.share));
   });
 
-  // Открытка
   document.getElementById('postcardBtn').addEventListener('click', openPostcard);
   document.getElementById('postcardClose').addEventListener('click', closePostcard);
   document.getElementById('postcardDownload').addEventListener('click', downloadPostcard);
@@ -1083,7 +1301,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('bgFile').click();
   });
 
-  // Фон
   document.getElementById('bgUploadBtn').addEventListener('click', () => {
     document.getElementById('bgFile').click();
   });
@@ -1096,6 +1313,24 @@ document.addEventListener('DOMContentLoaded', () => {
     updateBgUI();
     showToast('Фон сброшен на градиент');
   });
+
+  // Установка
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    // Показываем баннер чуть позже, чтобы не мешать первому запуску
+    setTimeout(showInstallBanner, 1500);
+  });
+  window.addEventListener('appinstalled', () => {
+    hideInstallBanner(true);
+    showToast('Приложение установлено!');
+  });
+  document.getElementById('installLater').addEventListener('click', () => hideInstallBanner(true));
+
+  // На iOS beforeinstallprompt нет — показываем инструкцию через 1.5 сек
+  if (isIOS()) {
+    setTimeout(showInstallBanner, 1500);
+  }
 
   updateBgUI();
   updateMadnessUI();
